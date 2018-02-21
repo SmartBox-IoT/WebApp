@@ -1,1 +1,216 @@
-.
+<html>
+<head>
+  <title>Thingspeak - Simple UI</title>
+  <script language="javascript">
+  <!--
+  
+    // 
+    //  https://github.com/SmartBox-IoT/WebApp/upload/master/Thingspeak
+    // 
+  
+    var THINGSPEAK_TIMEOUT = 5000;
+    var THINGSPEAK_RESULTS = 100;
+    var gThingspeakReadTimeout = null;
+  
+    function onThingspeakReadTimeout() {
+      if (!(gThingspeakReadTimeout === null)) {
+        gThingspeakReadTimeout = null;
+        alert('Error: thingspeak request timeout');
+      }
+    }
+
+    function onThingspeakReadResponse(pJson) {
+      if (!(gThingspeakReadTimeout === null)) {
+        window.clearTimeout(gThingspeakReadTimeout);
+        gThingspeakReadTimeout = null;
+        try {
+          if (!(typeof pJson === 'object')) {
+            alert('Error: thingspeak response - invalid json format');
+          } else if (!(typeof pJson.channel === 'object')) {
+            alert('Error: thingspeak response - "channel" undefined');
+          } else if (!(typeof pJson.feeds === 'object')) {
+            alert('Error: thingspeak response - "feeds" undefined');
+          } else {
+            for (var i=1; i<=8; i++) {
+              var vFieldName = document.forms['gui']['thingspeak_field'+i+'_name'];
+              var vFieldReadValue = document.forms['gui']['thingspeak_field'+i+'_readvalue'];
+              var vFieldWriteValue = document.forms['gui']['thingspeak_field'+i+'_writevalue'];
+              vFieldName.value = '';
+              vFieldReadValue.value = '';
+              vFieldWriteValue.value = '';
+              if (!(typeof pJson.channel['field'+i] === 'undefined')) {
+                vFieldName.value = pJson.channel['field'+i];
+                vFieldReadValue.value = '';
+                vFieldWriteValue.value = '';
+                if (pJson.feeds.length > 0) {
+                  for (var n=1; n<pJson.feeds.length; n++) {
+                    if (!(typeof pJson.feeds[n]['field'+i] === 'undefined')) {
+                      if (!(pJson.feeds[n]['field'+i] === null)) {
+                        vFieldReadValue.value = pJson.feeds[n]['field'+i];
+                        vFieldWriteValue.value = pJson.feeds[n]['field'+i];
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            if (pJson.feeds.length == 0) {
+              alert('Note: thingspeak response - empty feeds');
+            }
+          }
+        } catch (vError) {
+          alert('Error: thingspeak response '+vError);
+        }
+      }
+    }
+  
+    function doThingspeakReadRequest() {
+      gThingspeakReadTimeout = window.setTimeout('onThingspeakReadTimeout()',THINGSPEAK_TIMEOUT);
+      var vChannelId = document.forms['gui'].thingspeak_channel.value;
+      var vReadKey = document.forms['gui'].thingspeak_readkey.value;
+      var vApiUrl = 'https://api.thingspeak.com'
+                  + '/channels/'+vChannelId+'/feeds.json?'
+                  + (vReadKey == '' ? '' : 'api_key='+vReadKey+'&')
+                  + 'results='+THINGSPEAK_RESULTS+'&status=true&metadata=true&'
+                  + 'callback=onThingspeakReadResponse&'
+                  + 'mysessionid='+Math.random(1);
+      var vApiTag = document.createElement("script");
+      vApiTag.setAttribute('src',vApiUrl);
+      var vJsonP = document.getElementById('jsonp');
+      vJsonP.innerHTML = '';
+      vJsonP.appendChild(vApiTag);
+    }
+
+    function doThingspeakWriteRequest() {
+      var vChannelId = document.forms['gui'].thingspeak_channel.value;
+      var vWriteKey = document.forms['gui'].thingspeak_writekey.value;
+      var vApiUrl = 'https://api.thingspeak.com'
+                  + '/update?'
+                  + (vWriteKey == '' ? '' : 'api_key='+vWriteKey+'&')
+                  + 'mysessionid='+Math.random(1);
+      var vApiData = '';
+      for (var i=1; i<=8; i++) {
+        var vFieldName = document.forms['gui']['thingspeak_field'+i+'_name'].value;
+        var vFieldReadValue = document.forms['gui']['thingspeak_field'+i+'_readvalue'].value;
+        var vFieldWriteValue = document.forms['gui']['thingspeak_field'+i+'_writevalue'].value;
+        if (vFieldName != '' && vFieldWriteValue != '' && vFieldReadValue != vFieldWriteValue) {
+          vApiData = vApiData + '&field'+i+'='+vFieldWriteValue;
+        }
+      }
+      if (vWriteKey == '') {
+        alert('Error: thingspeak request - undefined write key');
+      } else if (vApiData == '') {
+        alert('Note: thingspeak request - unchanged fields');
+      } else {
+        var vApiTag = document.createElement("script");
+        vApiTag.setAttribute('src',vApiUrl+vApiData);
+        var vJsonP = document.getElementById('jsonp');
+        vJsonP.innerHTML = '';
+        vJsonP.appendChild(vApiTag);
+      }
+    }
+
+  //-->
+  </script>
+</head>
+<body bgcolor="#666666">
+  <center>
+    <h1>Thingspeak - Simple UI</h1>
+    <hr/>
+    <form name="gui" action=".">
+     
+     <table border="1" cellspacing="0" cellpadding="10" width="300">
+      <tr>
+       <td>
+         <table border="0" cellspacing="0" cellpadding="0" width="100%">
+          <tr>
+           <td>Channel-ID</td>
+           <td><input type="text" size="20" name="thingspeak_channel" value="9"/></td>
+          </tr>
+          <tr>
+           <td>Read-Key</td>
+           <td><input type="text" size="20" name="thingspeak_readkey" value=""/></td>
+          </tr>
+          <tr>
+           <td>Write-Key</td>
+           <td><input type="text" size="20" name="thingspeak_writekey" value=""/></td>
+          </tr>
+         </table>
+       </td>
+      </tr>
+      <tr>
+       <td>
+         <table border="0" cellspacing="0" cellpadding="0" width="100%">
+          <tr>
+           <td><input type="button" value="READ" onclick="doThingspeakReadRequest()"/></td>
+           <td><input type="button" value="WRITE" onclick="doThingspeakWriteRequest()"/></td>
+          </tr>
+         </table>
+       </td>
+      </tr>
+
+      <tr>
+       <td>
+
+         <table border="0" cellspacing="0" cellpadding="0" width="100%">
+          <tr>
+           <td>Field 1</td>
+           <td><input type="text" size="5" name="thingspeak_field1_writevalue"/>
+             <input type="hidden" size="5" name="thingspeak_field1_readvalue"/></td>
+           <td><input type="text" size="12" name="thingspeak_field1_name"/></td>
+          </tr>
+          <tr>
+           <td>Field 2</td>
+           <td><input type="text" size="5" name="thingspeak_field2_writevalue"/>
+             <input type="hidden" size="5" name="thingspeak_field2_readvalue"/></td>
+           <td><input type="text" size="12" name="thingspeak_field2_name"/></td>
+          </tr>
+          <tr>
+           <td>Field 3</td>
+           <td><input type="text" size="5" name="thingspeak_field3_writevalue"/>
+             <input type="hidden" size="5" name="thingspeak_field3_readvalue"/></td>
+           <td><input type="text" size="12" name="thingspeak_field3_name"/></td>
+          </tr>
+          <tr>
+           <td>Field 4</td>
+           <td><input type="text" size="5" name="thingspeak_field4_writevalue"/>
+             <input type="hidden" size="5" name="thingspeak_field4_readvalue"/></td>
+           <td><input type="text" size="12" name="thingspeak_field4_name"/></td>
+          </tr>
+          <tr>
+           <td>Field 5</td>
+           <td><input type="text" size="5" name="thingspeak_field5_writevalue"/>
+             <input type="hidden" size="5" name="thingspeak_field5_readvalue"/></td>
+           <td><input type="text" size="12" name="thingspeak_field5_name"/></td>
+          </tr>
+          <tr>
+           <td>Field 6</td>
+           <td><input type="text" size="5" name="thingspeak_field6_writevalue"/>
+             <input type="hidden" size="5" name="thingspeak_field6_readvalue"/></td>
+           <td><input type="text" size="12" name="thingspeak_field6_name"/></td>
+          </tr>
+          <tr>
+           <td>Field 7</td>
+           <td><input type="text" size="5" name="thingspeak_field7_writevalue"/>
+             <input type="hidden" size="5" name="thingspeak_field7_readvalue"/></td>
+           <td><input type="text" size="12" name="thingspeak_field7_name"/></td>
+          </tr>
+          <tr>
+           <td>Field 8</td>
+           <td><input type="text" size="5" name="thingspeak_field8_writevalue"/>
+             <input type="hidden" size="5" name="thingspeak_field8_readvalue"/></td>
+           <td><input type="text" size="12" name="thingspeak_field8_name"/></td>
+          </tr>
+         </table>
+
+       </td>
+      </tr>
+
+     </table>
+   
+    </form>
+  
+  </center>  
+  <div id="jsonp"></div>
+</body>
+</html>
